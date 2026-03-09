@@ -4,7 +4,11 @@ import pickle
 import numpy as np
 from scipy.sparse import hstack, csr_matrix
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from dotenv import load_dotenv
+import anthropic
 import os
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
@@ -20,6 +24,7 @@ with open('model/best_model_name.txt', 'r') as f:
     model_name = f.read()
 
 analyzer = SentimentIntensityAnalyzer()
+client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 def truncate(text, limit=150):
     return " ".join(str(text).split()[:limit])
@@ -37,7 +42,6 @@ def rating_sentiment_mismatch(text, rating):
     return abs(normalized_rating - score)
 
 def classify_review(text, rating):
-    # auto flag very short reviews
     if len(text.split()) < 5:
         return "Suspicious"
 
@@ -98,11 +102,21 @@ def summary():
     if not real_reviews:
         return jsonify({"summary": "Not enough real reviews to summarize."})
 
-    total = len(real_reviews)
-    sample = real_reviews[:2]
-    summary_text = f"Based on {total} genuine reviews: " + " | ".join(sample)
+    top_reviews = real_reviews[:10]
+    combined = "\n".join([f"- {r}" for r in top_reviews])
 
-    return jsonify({"summary": summary_text})
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=150,
+        messages=[
+            {
+                "role": "user",
+                "content": f"Based on these genuine customer reviews, write a 2-3 sentence summary of what people honestly think about this place. Be concise and neutral.\n\nReviews:\n{combined}\n\nSummary:"
+            }
+        ]
+    )
+
+    return jsonify({"summary": message.content[0].text.strip()})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
