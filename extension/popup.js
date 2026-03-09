@@ -1,24 +1,30 @@
 const analyzeBtn = document.getElementById('analyze-btn');
+const summaryBtn = document.getElementById('summary-btn');
 const loading = document.getElementById('loading');
+const summaryLoading = document.getElementById('summary-loading');
 const results = document.getElementById('results');
 const errorDiv = document.getElementById('error');
+
+let storedRealReviews = [];
 
 analyzeBtn.addEventListener('click', async () => {
   results.style.display = 'none';
   errorDiv.style.display = 'none';
   loading.style.display = 'block';
   analyzeBtn.disabled = true;
+  document.getElementById('summary-text').textContent = '';
+  summaryBtn.style.display = 'block';
+  summaryBtn.disabled = false;
+  summaryBtn.textContent = 'Generate Summary';
 
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    // inject content script manually
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       files: ['content.js']
     });
 
-    // wait for script to load
     await new Promise(resolve => setTimeout(resolve, 500));
 
     const response = await chrome.tabs.sendMessage(tab.id, { action: 'scrapeReviews' });
@@ -36,15 +42,9 @@ analyzeBtn.addEventListener('click', async () => {
 
     const data = await apiResponse.json();
 
-    const summaryResponse = await fetch('http://127.0.0.1:5000/summary', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ real_reviews: data.real_reviews })
-    });
+    storedRealReviews = data.real_reviews;
 
-    const summaryData = await summaryResponse.json();
-
-    displayResults(data, summaryData.summary);
+    displayResults(data);
 
   } catch (err) {
     console.error(err);
@@ -54,7 +54,34 @@ analyzeBtn.addEventListener('click', async () => {
   }
 });
 
-function displayResults(data, summary) {
+summaryBtn.addEventListener('click', async () => {
+  summaryBtn.disabled = true;
+  summaryBtn.textContent = 'Generating...';
+  summaryLoading.style.display = 'block';
+  document.getElementById('summary-text').textContent = '';
+
+  try {
+    const summaryResponse = await fetch('http://127.0.0.1:5000/summary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ real_reviews: storedRealReviews })
+    });
+
+    const summaryData = await summaryResponse.json();
+
+    summaryLoading.style.display = 'none';
+    document.getElementById('summary-text').textContent = summaryData.summary || 'Not enough real reviews to summarize.';
+    summaryBtn.style.display = 'none';
+
+  } catch (err) {
+    console.error(err);
+    summaryLoading.style.display = 'none';
+    summaryBtn.disabled = false;
+    summaryBtn.textContent = 'Generate Summary';
+  }
+});
+
+function displayResults(data) {
   loading.style.display = 'none';
   analyzeBtn.disabled = false;
 
@@ -69,24 +96,50 @@ function displayResults(data, summary) {
   document.getElementById('positive-bar').style.width = pos + '%';
   document.getElementById('negative-bar').style.width = neg + '%';
 
-  document.getElementById('summary-text').textContent = summary || 'Not enough real reviews to summarize.';
-
   const list = document.getElementById('review-list');
   list.innerHTML = '';
 
-  data.reviews.forEach(r => {
-    const labelColor =
-      r.label === 'Real' ? 'badge-real' :
-      r.label === 'Fake' ? 'badge-fake' : 'badge-suspicious';
+  data.reviews.forEach((r, index) => {
+    const labelClass =
+      r.label === 'Real' ? 'pill-real' :
+      r.label === 'Fake' ? 'pill-fake' : 'pill-suspicious';
+
+    const sentimentClass =
+      r.sentiment === 'Positive' ? 'pill-positive' :
+      r.sentiment === 'Negative' ? 'pill-negative' : 'pill-neutral';
+
+    const isLong = r.text.length > 120;
+    const textId = `review-text-${index}`;
+    const btnId = `read-more-${index}`;
 
     list.innerHTML += `
       <div class="review-item">
-        <div class="review-label">
-          <span class="badge ${labelColor}">${r.label}</span>
+        <div class="review-meta">
+          <span class="pill ${labelClass}">${r.label}</span>
+          <span class="pill ${sentimentClass}">${r.sentiment}</span>
         </div>
-        <div class="review-text">${r.text}</div>
+        <div class="review-text collapsed" id="${textId}">${r.text}</div>
+        ${isLong ? `<span class="read-more" id="${btnId}">Read more</span>` : ''}
       </div>
     `;
+  });
+
+  data.reviews.forEach((r, index) => {
+    if (r.text.length > 120) {
+      const btn = document.getElementById(`read-more-${index}`);
+      const textEl = document.getElementById(`review-text-${index}`);
+      if (btn) {
+        btn.addEventListener('click', () => {
+          if (textEl.classList.contains('collapsed')) {
+            textEl.classList.remove('collapsed');
+            btn.textContent = 'Show less';
+          } else {
+            textEl.classList.add('collapsed');
+            btn.textContent = 'Read more';
+          }
+        });
+      }
+    }
   });
 
   results.style.display = 'block';
