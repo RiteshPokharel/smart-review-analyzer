@@ -12,6 +12,15 @@ analyzeBtn.addEventListener('click', async () => {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
+    // inject content script manually
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['content.js']
+    });
+
+    // wait for script to load
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     const response = await chrome.tabs.sendMessage(tab.id, { action: 'scrapeReviews' });
     const reviews = response?.reviews || [];
 

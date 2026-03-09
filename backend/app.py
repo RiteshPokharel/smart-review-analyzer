@@ -1,5 +1,3 @@
-from dotenv import load_dotenv
-load_dotenv()
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pickle
@@ -100,26 +98,11 @@ def summary():
     if not real_reviews:
         return jsonify({"summary": "Not enough real reviews to summarize."})
 
-    top_reviews = real_reviews[:10]
-    combined = "\n".join([f"- {r}" for r in top_reviews])
+    total = len(real_reviews)
+    sample = real_reviews[:2]
+    summary_text = f"Based on {total} genuine reviews: " + " | ".join(sample)
 
-    import anthropic
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=150,
-        messages=[
-            {
-                "role": "user",
-                "content": f"Based on these genuine customer reviews, write a 2-3 sentence summary of what people honestly think about this place. Be concise and neutral.\n\nReviews:\n{combined}\n\nSummary:"
-            }
-        ]
-    )
-
-    return jsonify({"summary": message.content[0].text.strip()})
+    return jsonify({"summary": summary_text})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
-
-

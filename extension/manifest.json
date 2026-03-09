@@ -5,7 +5,8 @@
   "description": "Detects fake and AI generated Google Maps reviews",
   "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "tabs"
   ],
   "host_permissions": [
     "https://www.google.com/maps/*",
@@ -18,11 +19,5 @@
       "48": "icon.png",
       "128": "icon.png"
     }
-  },
-  "content_scripts": [
-    {
-      "matches": ["https://www.google.com/maps/*"],
-      "js": ["content.js"]
-    }
-  ]
+  }
 }
