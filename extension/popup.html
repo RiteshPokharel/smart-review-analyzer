@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Review Analyzer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      width: 360px;
+      background: #f9f9f9;
+      color: #333;
+    }
+
+    header {
+      background: #4285F4;
+      color: white;
+      padding: 16px;
+      text-align: center;
+    }
+
+    header h1 { font-size: 16px; font-weight: 600; }
+    header p  { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+
+    .body { padding: 16px; }
+
+    #analyze-btn {
+      width: 100%;
+      padding: 10px;
+      background: #4285F4;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    #analyze-btn:hover { background: #3367d6; }
+    #analyze-btn:disabled { background: #aaa; cursor: not-allowed; }
+
+    #loading {
+      text-align: center;
+      padding: 20px;
+      font-size: 13px;
+      color: #666;
+      display: none;
+    }
+
+    #results { display: none; margin-top: 16px; }
+
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    .card h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .trust-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .badge {
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-real       { background: #e6f4ea; color: #2d7a3a; }
+    .badge-fake       { background: #fce8e6; color: #c5221f; }
+    .badge-suspicious { background: #fef7e0; color: #b06000; }
+
+    .sentiment-row { margin-bottom: 8px; }
+
+    .sentiment-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .bar-bg {
+      background: #eee;
+      border-radius: 10px;
+      height: 8px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 10px;
+      transition: width 0.6s ease;
+    }
+
+    .bar-positive { background: #34a853; }
+    .bar-negative { background: #ea4335; }
+
+    #summary-text {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #444;
+    }
+
+    .review-item {
+      border-bottom: 1px solid #f0f0f0;
+      padding: 8px 0;
+      font-size: 12px;
+    }
+
+    .review-item:last-child { border-bottom: none; }
+
+    .review-label {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .review-text {
+      color: #666;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    #error {
+      display: none;
+      background: #fce8e6;
+      color: #c5221f;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-top: 12px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Smart Review Analyzer</h1>
+  <p>Analyzing Google Maps Reviews</p>
+</header>
+
+<div class="body">
+  <button id="analyze-btn">Analyze Reviews</button>
+
+  <div id="loading">Analyzing reviews...</div>
+  <div id="error">Could not find reviews. Make sure you are on a Google Maps place page.</div>
+
+  <div id="results">
+
+    <div class="card">
+      <h3>Review Trust</h3>
+      <div class="trust-row">
+        <span>Real Reviews</span>
+        <span class="badge badge-real" id="real-count">0</span>
+      </div>
+      <div class="trust-row">
+        <span>Fake Reviews</span>
+        <span class="badge badge-fake" id="fake-count">0</span>
+      </div>
+      <div class="trust-row">
+        <span>Suspicious</span>
+        <span class="badge badge-suspicious" id="suspicious-count">0</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Sentiment (Real Reviews Only)</h3>
+      <div class="sentiment-row">
+        <div class="sentiment-label">
+          <span>Positive</span>
+          <span id="positive-pct">0%</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill bar-positive" id="positive-bar" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="sentiment-row">
+        <div class="sentiment-label">
+          <span>Negative</span>
+          <span id="negative-pct">0%</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fill bar-negative" id="negative-bar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Summary</h3>
+      <p id="summary-text">Generating summary...</p>
+    </div>
+
+    <div class="card">
+      <h3>Review Breakdown</h3>
+      <div id="review-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
