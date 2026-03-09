@@ -5,7 +5,7 @@ import numpy as np
 from scipy.sparse import hstack, csr_matrix
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from dotenv import load_dotenv
-import anthropic
+from groq import Groq
 import os
 
 load_dotenv()
@@ -24,7 +24,7 @@ with open('model/best_model_name.txt', 'r') as f:
     model_name = f.read()
 
 analyzer = SentimentIntensityAnalyzer()
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 def truncate(text, limit=150):
     return " ".join(str(text).split()[:limit])
@@ -105,8 +105,8 @@ def summary():
     top_reviews = real_reviews[:10]
     combined = "\n".join([f"- {r}" for r in top_reviews])
 
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
         max_tokens=150,
         messages=[
             {
@@ -116,7 +116,7 @@ def summary():
         ]
     )
 
-    return jsonify({"summary": message.content[0].text.strip()})
+    return jsonify({"summary": response.choices[0].message.content.strip()})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
