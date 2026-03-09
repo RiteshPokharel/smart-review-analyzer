@@ -1,0 +1,10 @@
+flask
+flask-cors
+scikit-learn
+pandas
+numpy
+scipy
+vaderSentiment
+groq
+python-dotenv
+nltk

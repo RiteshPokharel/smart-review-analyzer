@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: smart-review-analyzer
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python backend/app.py
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+        
